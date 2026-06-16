@@ -141,8 +141,8 @@ export const generatePhysicalDocPDF = async (type: string, data: any, logoBase64
     doc.setFont("helvetica", "bold");
     doc.text("Menyetujui,\nKepala Desa Wringinharjo", pageWidth / 2, y, { align: "center" });
     y += 25;
-    doc.text((data.nama_kades || "RISKIANASARI, SE.").toUpperCase(), pageWidth / 2, y, { align: "center" });
-    const nW = doc.getTextWidth((data.nama_kades || "RISKIANASARI, SE.").toUpperCase());
+    doc.text((data.nama_kades || "HASANAN").toUpperCase(), pageWidth / 2, y, { align: "center" });
+    const nW = doc.getTextWidth((data.nama_kades || "HASANAN").toUpperCase());
     doc.line(pageWidth/2 - nW/2, y+1, pageWidth/2 + nW/2, y+1);
   }
 
@@ -242,7 +242,7 @@ export const generatePhysicalDocPDF = async (type: string, data: any, logoBase64
 
     // PIHAK II
     doc.text("II", margin, y);
-    doc.text("Nama", labelX, y); doc.text(":", dotX, y); doc.setFont("helvetica", "bold"); doc.text("RISKIANASARI, SE.", valX, y); y += 6;
+    doc.text("Nama", labelX, y); doc.text(":", dotX, y); doc.setFont("helvetica", "bold"); doc.text("HASANAN", valX, y); y += 6;
     doc.setFont("helvetica", "normal");
     doc.text("Jabatan", labelX, y); doc.text(":", dotX, y); doc.text("Pemegang Kekuasaan Pengelolaan Keuangan Desa", valX, y); y += 6;
     doc.text("Alamat", labelX, y); doc.text(":", dotX, y); 
@@ -276,7 +276,7 @@ export const generatePhysicalDocPDF = async (type: string, data: any, logoBase64
 
     doc.text(`Wringinharjo, ${format(dBast, "d MMMM yyyy", { locale: localeID })}`, pageWidth - margin, y, { align: "right" }); y += 10;
     
-    addSignatures(y, "PIHAK KEDUA\nPemegang Kekuasaan\nPengelolaan Keuangan Desa", "RISKIANASARI, SE.", "PIHAK KESATU\nPelaksana Kegiatan Anggaran", data.nama_kasi);
+    addSignatures(y, "PIHAK KEDUA\nPemegang Kekuasaan\nPengelolaan Keuangan Desa", "HASANAN", "PIHAK KESATU\nPelaksana Kegiatan Anggaran", data.nama_kasi);
   }
 
   else if (type === 'spj_ba_pembayaran') {

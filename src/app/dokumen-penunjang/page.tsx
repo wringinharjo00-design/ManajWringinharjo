@@ -148,8 +148,9 @@ const getRtRwWeight = (jabatan: string) => {
 
 const getKaderWeight = (jabatan: string) => {
   const j = jabatan.toUpperCase();
-  const posyanduMatch = j.match(/RAHAYU\s*(\d+)/);
-  return posyanduMatch ? parseInt(posyanduMatch[1]) : 999;
+  // Ekstrak angka pertama yang ditemukan dalam string jabatan (misal: Anggrek 1, Rahayu 2, dll)
+  const match = j.match(/(\d+)/);
+  return match ? parseInt(match[1]) : 999;
 };
 
 const sortParticipants = (list: any[]) => {

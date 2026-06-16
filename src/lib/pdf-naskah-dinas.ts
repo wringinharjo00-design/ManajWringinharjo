@@ -308,8 +308,8 @@ export const generateNaskahPDF = async (type: string, data: any, logoBase64?: st
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", sigX, currentY);
   currentY += 18; 
-  doc.text("RISKIANASARI, SE.", sigX, currentY);
-  const nW = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", sigX, currentY);
+  const nW = doc.getTextWidth("HASANAN");
   doc.line(sigX, currentY + 0.8, sigX + nW, currentY + 0.8);
 
   return doc.output("blob");

@@ -246,7 +246,7 @@ export const generateBASTPDF = async (values: any, logoBase64?: string | null): 
   const officialName = values.officialName?.split(" - ")[0] || "PETUGAS";
   const officialJob = values.officialName?.split(" - ")[1] || "PERANGKAT DESA";
   addIdentitas("I", officialName, `Pelaksana Kegiatan Anggaran (${officialJob})`, "PIHAK KESATU");
-  addIdentitas("II", "RISKIANASARI, SE.", "Pemegang Kekuasaan Pengelolaan Keuangan Desa", "PIHAK KEDUA");
+  addIdentitas("II", "HASANAN", "Pemegang Kekuasaan Pengelolaan Keuangan Desa", "PIHAK KEDUA");
   currentY += 2;
   const midText = "Dengan ini menyatakan bahwa PIHAK KESATU telah menyerahkan barang/pekerjaan kepada PIHAK KEDUA dan PIHAK KEDUA telah menerima barang/pekerjaan dari PIHAK KESATU berupa :";
   const splitMid = doc.splitTextToSize(midText, contentWidth);
@@ -291,8 +291,8 @@ export const generateBASTPDF = async (values: any, logoBase64?: string | null): 
   doc.text("Pelaksana Kegiatan Anggaran", pageWidth - margin - 35, signY + 5, { align: "center" });
   const nameY = signY + 32;
   doc.setFont("helvetica", "bold");
-  doc.text("RISKIANASARI, SE.", margin + 35, nameY, { align: "center" });
-  const w1 = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", margin + 35, nameY, { align: "center" });
+  const w1 = doc.getTextWidth("HASANAN");
   doc.line(margin + 35 - w1/2, nameY + 1, margin + 35 + w1/2, nameY + 1);
   const sigName = officialName.toUpperCase();
   doc.text(sigName, pageWidth - margin - 35, nameY, { align: "center" });
@@ -492,8 +492,8 @@ export const generateSiltapPDF = async (values: any, logoBase64?: string | null)
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 6);
   currentY += 25; 
-  doc.text("RISKIANASARI, SE.", sigX, currentY);
-  const nW = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", sigX, currentY);
+  const nW = doc.getTextWidth("HASANAN");
   doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
 
   return doc.output("blob");
@@ -657,8 +657,8 @@ export const generateInsentifPDF = async (values: any, logoBase64?: string | nul
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 6);
   currentY += 25; 
-  doc.text("RISKIANASARI, SE.", sigX, currentY);
-  const nW = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", sigX, currentY);
+  const nW = doc.getTextWidth("HASANAN");
   doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
   return doc.output("blob");
 }
@@ -760,8 +760,8 @@ export const generateHonorNarasumberPDF = async (values: any, logoBase64?: strin
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 6);
   currentY += 25;
-  doc.text("RISKIANASARI, SE.", sigX, currentY);
-  const nW = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", sigX, currentY);
+  const nW = doc.getTextWidth("HASANAN");
   doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
   return doc.output("blob");
 }
@@ -893,8 +893,8 @@ const drawUntuk = () => {
     doc.setFont("helvetica", "bold");
     doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 6);
     currentY += 28;
-    doc.text("RISKIANASARI, SE.", sigX, currentY);
-    const width = doc.getTextWidth("RISKIANASARI, SE.");
+    doc.text("HASANAN", sigX, currentY);
+    const width = doc.getTextWidth("HASANAN");
     doc.line(sigX, currentY + 1, sigX + width, currentY + 1);
   };
   addHeader();
@@ -977,8 +977,8 @@ export const generateSPPDPDF = async (values: any, logoBase64?: string | null): 
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 12);
   currentY += 32;
-  doc.text("RISKIANASARI, SE.", sigX, currentY);
-  const nW = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", sigX, currentY);
+  const nW = doc.getTextWidth("HASANAN");
   doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
   doc.addPage();
   currentY = margin;
@@ -1004,8 +1004,8 @@ export const generateSPPDPDF = async (values: any, logoBase64?: string | null): 
   doc.text(formatDateIndo(values.startDate), midX + 31, margin + 19);
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", midX + colW2 / 2, margin + 27, { align: "center" });
-  doc.text("RISKIANASARI, SE.", midX + colW2 / 2, margin + 40, { align: "center" });
-  const wH1 = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", midX + colW2 / 2, margin + 40, { align: "center" });
+  const wH1 = doc.getTextWidth("HASANAN");
   doc.line(midX + colW2 / 2 - wH1/2, margin + 41, midX + colW2 / 2 + wH1/2, margin + 41);
   doc.setFont("helvetica", "normal");
 const noX = margin + 2;
@@ -1067,8 +1067,8 @@ let y2 = margin + rowH2;
     doc.text(formatDateIndo(values.endDate), ivValueX, y2 + 15);
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", margin + colW2 / 2, y2 + 25, { align: "center" });
-  doc.text("RISKIANASARI, SE.", margin + colW2 / 2, y2 + 38, { align: "center" });
-  const wH2 = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", margin + colW2 / 2, y2 + 38, { align: "center" });
+  const wH2 = doc.getTextWidth("HASANAN");
   doc.line(margin + colW2 / 2 - wH2 / 2, y2 + 39, margin + colW2 / 2 + wH2 / 2, y2 + 39);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);

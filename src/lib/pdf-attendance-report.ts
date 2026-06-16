@@ -210,8 +210,8 @@ export const generateAttendancePDF = async (report: AttendanceReportData): Promi
   doc.setFont("helvetica", "bold");
   doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 5);
   currentY += 22;
-  doc.text("RISKIANASARI, SE.", sigX, currentY);
-  const nW = doc.getTextWidth("RISKIANASARI, SE.");
+  doc.text("HASANAN", sigX, currentY);
+  const nW = doc.getTextWidth("HASANAN");
   doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
 
   return doc.output("blob");

@@ -59,7 +59,7 @@ function EditorContent() {
     swadaya: 0,
     total_pagu: 0,
     volume: "",
-    nama_kades: "RISKIANASARI, SE.",
+    nama_kades: "HASANAN",
     nama_kasi: "",
     jabatan_kasi: "",
     nama_bendahara: "",

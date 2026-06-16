@@ -136,8 +136,8 @@ export const generateDaftarHadirPDF = async (values: PDFData, logoBase64?: strin
     doc.setFont("helvetica", "bold");
     doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 6);
     currentY += 25;
-    doc.text("RISKIANASARI, SE.", sigX, currentY);
-    const nW = doc.getTextWidth("RISKIANASARI, SE.");
+    doc.text("HASANAN", sigX, currentY);
+    const nW = doc.getTextWidth("HASANAN");
     doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
 
     return doc.output("blob");
@@ -257,8 +257,8 @@ export const generateDaftarHadirPesertaPDF = async (values: PDFData, logoBase64?
     doc.setFont("helvetica", "bold");
     doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 6);
     currentY += 25;
-    doc.text("RISKIANASARI, SE.", sigX, currentY);
-    const nW = doc.getTextWidth("RISKIANASARI, SE.");
+    doc.text("HASANAN", sigX, currentY);
+    const nW = doc.getTextWidth("HASANAN");
     doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
 
     return doc.output("blob");
@@ -417,8 +417,8 @@ export const generateUangSakuPDF = async (values: PDFData, logoBase64?: string |
     doc.setFont("helvetica", "bold");
     doc.text("Kepala Desa Wringinharjo,", sigX, currentY + 6);
     currentY += 25;
-    doc.text("RISKIANASARI, SE.", sigX, currentY);
-    const nW = doc.getTextWidth("RISKIANASARI, SE.");
+    doc.text("HASANAN", sigX, currentY);
+    const nW = doc.getTextWidth("HASANAN");
     doc.line(sigX, currentY + 1, sigX + nW, currentY + 1);
 
     return doc.output("blob");
