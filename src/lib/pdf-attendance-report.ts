@@ -17,6 +17,10 @@ const DAYS_MAP = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'
 export const generateAttendancePDF = async (report: AttendanceReportData): Promise<Blob> => {
   const { month, year, data, logoBase64, settings } = report;
   
+  // Fallback settings jika belum diatur di database
+  const workDays = settings?.hari_kerja || ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
+  const holidays = settings?.hari_libur || [];
+
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
@@ -85,11 +89,12 @@ export const generateAttendancePDF = async (report: AttendanceReportData): Promi
         const checkDate = new Date(parseInt(year), monthIdx, i);
         const dayName = DAYS_MAP[checkDate.getDay()];
         const dateStr = `${year}-${month}-${i.toString().padStart(2, '0')}`;
-        const isWeekend = settings?.hari_kerja ? !settings.hari_kerja.includes(dayName) : false;
-        const isManualHoliday = settings?.hari_libur ? settings.hari_libur.includes(dateStr) : false;
+        
+        const isWeekend = !workDays.includes(dayName);
+        const isManualHoliday = holidays.includes(dateStr);
         
         if (isWeekend || isManualHoliday) {
-            doc.setFillColor(255, 200, 200);
+            doc.setFillColor(255, 190, 190); // Warna merah untuk libur (lebih jelas)
             doc.rect(x, y, colDayW, 8, 'F');
         }
       }
@@ -144,11 +149,12 @@ export const generateAttendancePDF = async (report: AttendanceReportData): Promi
         const checkDate = new Date(parseInt(year), monthIdx, d);
         const dayName = DAYS_MAP[checkDate.getDay()];
         const dateStr = `${year}-${month}-${d.toString().padStart(2, '0')}`;
-        const isWeekend = settings?.hari_kerja ? !settings.hari_kerja.includes(dayName) : false;
-        const isManualHoliday = settings?.hari_libur ? settings.hari_libur.includes(dateStr) : false;
+        
+        const isWeekend = !workDays.includes(dayName);
+        const isManualHoliday = holidays.includes(dateStr);
         
         if (isWeekend || isManualHoliday) {
-            doc.setFillColor(255, 235, 235);
+            doc.setFillColor(255, 230, 230); // Latar merah sel data (lebih soft tapi tetap terlihat)
             doc.rect(x, currentY, colDayW, rowH, 'F');
         }
       }
@@ -159,7 +165,6 @@ export const generateAttendancePDF = async (report: AttendanceReportData): Promi
         const record = row.attendance[d];
         if (record) {
           let mark = "";
-          // Logika baru: Jika masuk tapi tidak pulang, anggap terlambat (T)
           const isStillWorking = record.jam_masuk && !record.jam_pulang && record.status !== 'alpha' && record.status !== 'izin' && record.status !== 'dinas_luar';
           
           if (record.status === 'alpha') mark = "A";
@@ -170,7 +175,7 @@ export const generateAttendancePDF = async (report: AttendanceReportData): Promi
           
           if (mark === "H") doc.setTextColor(0, 150, 0);
           else if (mark === "A") doc.setTextColor(200, 0, 0);
-          else if (mark === "T") doc.setTextColor(255, 102, 0); // Orange for T
+          else if (mark === "T") doc.setTextColor(255, 102, 0);
           else doc.setTextColor(0, 0, 0);
           
           doc.text(mark, x + colDayW / 2, currentY + 4.5, { align: "center" });

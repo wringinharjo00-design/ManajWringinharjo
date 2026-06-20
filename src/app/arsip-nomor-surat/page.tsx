@@ -211,7 +211,7 @@ export default function ArsipNomorSuratPage() {
              </div>
              <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase text-slate-500 ml-1">Nomor Surat</Label>
-                <Input placeholder="Contoh: 400 / 056 / 04 / 2026" value={formData.nomor} onChange={e => setFormData(p => ({ ...p, nomor: e.target.value }))} className="h-12 rounded-xl font-mono" />
+                <Input placeholder="Contoh: 400 / 056 / 13 / 2026" value={formData.nomor} onChange={e => setFormData(p => ({ ...p, nomor: e.target.value }))} className="h-12 rounded-xl font-mono" />
              </div>
              <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase text-slate-500 ml-1">Perihal / Nama Kegiatan</Label>

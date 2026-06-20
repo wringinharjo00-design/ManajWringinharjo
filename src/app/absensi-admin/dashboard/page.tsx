@@ -62,7 +62,7 @@ export default function MonitoringAbsensiGrid() {
   const settingsRef = useMemoFirebase(() => 
     (db && user && isAuthorized) ? doc(db, "absensi_settings", "global") : null, 
   [db, user, isAuthorized])
-  const { data: settings } = useDoc(settingsRef)
+  const { data: settings, isLoading: isSettingsLoading } = useDoc(settingsRef)
 
   // Ambil Master Akun
   const personelRef = useMemoFirebase(() => 
@@ -86,10 +86,18 @@ export default function MonitoringAbsensiGrid() {
   const { data: attendanceData, isLoading: isAttendanceLoading } = useCollection(absensiRef)
 
   const rekapGrid = useMemo(() => {
-    if (!personnelList || !settings) return []
+    // FIX: Jangan return [] jika settings null, gunakan default agar data personel tetap muncul
+    if (!personnelList) return []
 
-    const workDays = settings.hari_kerja || ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
-    const holidays = settings.hari_libur || [];
+    const safeSettings = settings || {
+      hari_kerja: ['senin', 'selasa', 'rabu', 'kamis', 'jumat'],
+      hari_libur: [],
+      jam_masuk: "08:00",
+      toleransi_telat: 15
+    };
+
+    const workDays = safeSettings.hari_kerja || ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
+    const holidays = safeSettings.hari_libur || [];
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const daysInMonth = getDaysInMonth(new Date(parseInt(filterYear), parseInt(filterMonth) - 1));
     
@@ -136,11 +144,11 @@ export default function MonitoringAbsensiGrid() {
 
                 // Hitung Keterlambatan
                 if (record.jam_masuk && record.status !== 'alpha' && record.status !== 'izin') {
-                  const schedIn = settings.jadwal?.[dayName]?.masuk || settings.jam_masuk || "08:00";
+                  const schedIn = safeSettings.jadwal?.[dayName]?.masuk || safeSettings.jam_masuk || "08:00";
                   const schedInSec = timeToSeconds(schedIn);
                   const actualInSec = timeToSeconds(record.jam_masuk);
                   
-                  if (actualInSec > (schedInSec + ((settings.toleransi_telat || 0) * 60))) {
+                  if (actualInSec > (schedInSec + ((safeSettings.toleransi_telat || 0) * 60))) {
                     totalLatenessSec += (actualInSec - schedInSec);
                   }
 
@@ -240,7 +248,7 @@ export default function MonitoringAbsensiGrid() {
                         </tr>
                     </thead>
                     <tbody>
-                        {rekapGrid.map((row, idx) => (
+                        {rekapGrid.length > 0 ? rekapGrid.map((row, idx) => (
                             <tr key={row.id} className={cn("hover:bg-slate-50 transition-colors border-b", !row.hasUid && "bg-amber-50/30")}>
                                 <td className="px-2 py-3 text-center font-bold text-slate-500 border-r">{idx + 1}</td>
                                 <td className="px-2 py-3 text-center font-mono font-black text-orange-600 border-r bg-orange-50/30">{formatSeconds(row.stats.totalLatenessSec)}</td>
@@ -292,7 +300,13 @@ export default function MonitoringAbsensiGrid() {
                                 <td className="text-center font-black bg-red-50 border-r border-slate-200 text-red-600">{row.stats.tk || 0}</td>
                                 <td className="text-center font-black bg-indigo-50 border-r border-slate-200 text-indigo-700">{row.stats.dl || 0}</td>
                             </tr>
-                        ))}
+                        )) : (
+                          <tr>
+                            <td colSpan={tableHeaderDays.length + 7} className="py-20 text-center text-slate-400 italic">
+                                Belum ada data perangkat yang tersinkronisasi di database 'personel'.
+                            </td>
+                          </tr>
+                        )}
                     </tbody>
                 </table>
                 )}

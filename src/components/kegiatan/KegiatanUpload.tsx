@@ -62,7 +62,6 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
   const [agendas, setAgendas] = useState<AgendaItem[]>([])
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(format(new Date(), "yyyy-MM-dd"))
   
-  // Cloudinary Image URLs
   const [cloudinaryUrls, setCloudinaryUrls] = useState<{
     kegiatan: string[],
     atk: string[],
@@ -86,7 +85,6 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
   const personnelRef = useMemoFirebase(() => db ? collection(db, "personnel") : null, [db])
   const { data: dbOfficials } = useCollection(personnelRef)
 
-  // GLOBAL CONFIG: Use shared village settings
   const villageSettingsRef = useMemoFirebase(() => {
     if (!db || !user) return null
     return doc(db, "settings", "village")
@@ -186,7 +184,6 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
     
     form.setValue("location", agenda.location || "Balai Desa Wringinharjo", { shouldDirty: true, shouldValidate: true })
     
-    // Otomatisasi tipe kegiatan berdasarkan agenda
     const desc = agenda.description || "";
     if (desc.includes("JENIS: Internal")) {
       form.setValue("activityType", "Internal", { shouldValidate: true });
@@ -290,7 +287,8 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
         toast({ title: "AI Berhasil", description: "Draf notulen telah dibuat." });
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Gagal AI", description: "Layanan AI tidak tersedia." });
+      console.error("AI Error:", e);
+      toast({ variant: "destructive", title: "Gagal AI", description: "Layanan AI tidak tersedia atau API Key belum diatur." });
     } finally {
       setIsGeneratingAI(false);
     }
@@ -307,11 +305,9 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
     setIsUploading(true);
 
     try {
-      // 1. Prepare materials & undangan
       const materialData = await Promise.all(selectedMaterials.map(f => fileToBase64(f)));
       const undanganData = selectedUndangan ? await fileToBase64(selectedUndangan) : null;
 
-      // 2. Generate PDF Files for Notulen & BAST
       const notulenBlob = await generateNotulenPDF(values, villageSettings?.logoBase64);
       const notulenBase64 = await blobToBase64(notulenBlob);
 
@@ -321,7 +317,6 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
         bastBase64 = await blobToBase64(bastBlob);
       }
 
-      // 3. Generate Documentation PDFs from Cloudinary URLs
       let dokKegiatanBase64 = null;
       if (cloudinaryUrls.kegiatan.length > 0) {
         const files = await getFilesFromUrls(cloudinaryUrls.kegiatan);
@@ -345,7 +340,6 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
 
       const targetFolderId = villageSettings?.kegiatanFolderId || GOOGLE_CONFIG.parentFolderId;
 
-      // 4. Save Everything to Google Drive via Apps Script
       const result = await callAppsScript({
         action: 'saveToDrive',
         folderName: `${values.title} | ${values.date} ${initialData ? '(UPDATED)' : ''}`,
@@ -364,7 +358,6 @@ export function KegiatanUpload({ onSuccess, initialData }: { onSuccess?: () => v
 
       if (!result.success) throw new Error(result.error || "Gagal simpan ke Drive");
 
-      // 5. Save to Firestore (Village Root Collection)
       const docData = {
         ...values,
         updatedBy: user.uid,

@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase"
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, query, orderBy, doc } from "firebase/firestore"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -37,7 +37,7 @@ export default function CetakDokumenAbsensi() {
   const { data: villageSettings } = useDoc(villageRef)
 
   // 2. Ambil Master Personel dari Database Akun
-  const personnelRef = useMemoFirebase(() => (db && user && isAuthorized) ? collection(db, "personel") : null, [db, user, isAuthorized])
+  const personnelRef = useMemoFirebase(() => (db && user && isAuthorized) ? query(collection(db, "personel"), orderBy("nama", "asc")) : null, [db, user, isAuthorized])
   const { data: personnelList, isLoading: isPersonnelLoading } = useCollection(personnelRef)
 
   // 3. Ambil Seluruh Data Absensi
@@ -54,10 +54,19 @@ export default function CetakDokumenAbsensi() {
 
   // 5. Logika Rekap Data Laporan & Alpha Otomatis
   const reportData = useMemo(() => {
-    if (!personnelList || !attendanceData || !attendanceSettings) return []
+    // Perbaikan: Hanya personnelList yang wajib ada untuk mulai memproses baris
+    if (!personnelList) return []
 
-    const workDays = attendanceSettings.hari_kerja || ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
-    const holidays = attendanceSettings.hari_libur || [];
+    // Gunakan pengaturan default jika belum pernah disimpan oleh admin
+    const safeSettings = attendanceSettings || {
+      hari_kerja: ['senin', 'selasa', 'rabu', 'kamis', 'jumat'],
+      hari_libur: [],
+      jam_masuk: "08:00",
+      toleransi_telat: 15
+    };
+
+    const workDays = safeSettings.hari_kerja || ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
+    const holidays = safeSettings.hari_libur || [];
     const daysInMonth = getDaysInMonth(new Date(parseInt(filterYear), parseInt(filterMonth) - 1));
     const todayStr = format(new Date(), "yyyy-MM-dd");
 
@@ -70,20 +79,22 @@ export default function CetakDokumenAbsensi() {
         const uid = p.uid || p.id;
 
         // Cari data absen yang cocok dengan personel ini di bulan terpilih
-        const filteredAbsen = attendanceData.filter(a => {
-            const matchesId = a.personel_id === uid || a.id.startsWith(uid);
-            const matchesMonth = a.tanggal?.startsWith(`${filterYear}-${filterMonth}`);
-            return matchesId && matchesMonth;
-        })
+        if (attendanceData && uid) {
+          const filteredAbsen = attendanceData.filter(a => {
+              const matchesId = a.personel_id === uid || a.id.startsWith(uid);
+              const matchesMonth = a.tanggal?.startsWith(`${filterYear}-${filterMonth}`);
+              return matchesId && matchesMonth;
+          })
 
-        // Masukkan data absen real ke dalam kalender bulan
-        filteredAbsen.forEach(a => {
-          const parts = a.tanggal.split('-');
-          if (parts.length === 3) {
-            const d = parseInt(parts[2]);
-            userMonthData[d] = a;
-          }
-        })
+          // Masukkan data absen real ke dalam kalender bulan
+          filteredAbsen.forEach(a => {
+            const parts = a.tanggal.split('-');
+            if (parts.length === 3) {
+              const d = parseInt(parts[2]);
+              userMonthData[d] = a;
+            }
+          })
+        }
 
         // Cek setiap tanggal untuk Alpha Otomatis
         for (let d = 1; d <= daysInMonth; d++) {
@@ -102,7 +113,7 @@ export default function CetakDokumenAbsensi() {
           // Hitung Statistik
           const record = userMonthData[d];
           if (record) {
-            // Logika baru: Jika masuk tapi tidak pulang, anggap telat/incomplete (T)
+            // Logika: Jika masuk tapi tidak pulang, anggap telat/incomplete (T)
             const isStillWorking = record.jam_masuk && !record.jam_pulang && record.status !== 'alpha' && record.status !== 'izin' && record.status !== 'dinas_luar';
             
             if (record.status === 'izin') s++;
@@ -195,7 +206,7 @@ export default function CetakDokumenAbsensi() {
 
   if (!isAuthorized) return <div className="p-10 text-center font-bold">Akses Ditolak</div>;
 
-  const isLoading = isPersonnelLoading || isAttendanceLoading || isSettingsLoading;
+  const isLoading = isPersonnelLoading || isAttendanceLoading;
 
   return (
     <div className="max-w-4xl mx-auto space-y-10">

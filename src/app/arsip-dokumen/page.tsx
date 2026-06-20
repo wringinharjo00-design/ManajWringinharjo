@@ -1,10 +1,9 @@
-
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Archive, FileText, Scale, Loader2, Plus, Search, ExternalLink, Trash2, AlertCircle, Database, Layers, Activity } from "lucide-react"
+import { Archive, FileText, Scale, Loader2, Plus, Search, ExternalLink, Trash2, AlertCircle, Database, Layers, Activity, Calendar } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +14,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@
 import { collection, doc, orderBy, query } from "firebase/firestore"
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { GOOGLE_CONFIG } from "@/lib/google-config"
-import { APB_DATA, BIDANG_NAMES } from "@/lib/apbdes-data"
+import { BIDANG_NAMES, type ApbItem } from "@/lib/apbdes-data"
 
 export default function ArsipDokumenPage() {
   const { user } = useUser()
@@ -26,7 +25,8 @@ export default function ArsipDokumenPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 
-  // Form states for SPJ (Integrated with APBDes)
+  // Form states for SPJ
+  const [spjTahun, setSpjTahun] = useState("2026")
   const [spjBidang, setSpjBidang] = useState("")
   const [spjSumber, setSpjSumber] = useState("")
   const [spjKegiatan, setSpjKegiatan] = useState("")
@@ -38,17 +38,31 @@ export default function ArsipDokumenPage() {
   const [phJenisManual, setPhPhJenisManual] = useState("")
   const [phNomor, setPhNomor] = useState("")
 
+  // FETCH APBDes Data from Firestore (Unified Source)
+  const apbRef = useMemoFirebase(() => {
+    if (!db || !user) return null
+    return query(collection(db, "apbdes_records"), orderBy("kode", "asc"))
+  }, [db, user])
+  const { data: currentApbData, isLoading: isApbLoading } = useCollection<ApbItem>(apbRef)
+
   // APBDes Filtering logic for SPJ
   const filteredSources = useMemo(() => {
-    if (!spjBidang) return []
-    const sources = APB_DATA.filter(item => item.bidang.toString() === spjBidang).map(item => item.sumber)
+    if (!spjBidang || !currentApbData) return []
+    const sources = currentApbData
+      .filter(item => String(item.bidang) === String(spjBidang) && item.tahun === spjTahun)
+      .map(item => String(item.sumber || "").trim())
+      .filter(s => s !== "");
     return Array.from(new Set(sources))
-  }, [spjBidang])
+  }, [spjBidang, spjTahun, currentApbData])
 
   const filteredActivities = useMemo(() => {
-    if (!spjBidang || !spjSumber) return []
-    return APB_DATA.filter(item => item.bidang.toString() === spjBidang && item.sumber === spjSumber)
-  }, [spjBidang, spjSumber])
+    if (!spjBidang || !spjSumber || !currentApbData) return []
+    return currentApbData.filter(item => 
+      String(item.bidang) === String(spjBidang) && 
+      item.tahun === spjTahun &&
+      String(item.sumber || "").trim() === String(spjSumber).trim()
+    )
+  }, [spjBidang, spjSumber, spjTahun, currentApbData])
 
   // GLOBAL DATA FETCHING
   const villageSettingsRef = useMemoFirebase(() => {
@@ -123,7 +137,7 @@ export default function ArsipDokumenPage() {
   }
 
   const handleSaveSpj = async () => {
-    if (!user || !spjBidang || !spjKegiatan || !spjSumber || !spjBulan || !selectedFile) {
+    if (!user || !spjTahun || !spjBidang || !spjKegiatan || !spjSumber || !spjBulan || !selectedFile) {
       toast({ variant: "destructive", title: "Data Tidak Lengkap", description: "Mohon isi semua bidang dan pilih file PDF." })
       return
     }
@@ -136,12 +150,13 @@ export default function ArsipDokumenPage() {
 
     setIsUploading(true)
     try {
-      const fileName = `${spjKegiatan} | ${spjSumber} | ${spjBulan}.pdf`
+      const fileName = `${spjKegiatan} | ${spjTahun} | ${spjSumber} | ${spjBulan}.pdf`
       const driveResult = await uploadToDrive(fileName, targetFolderId)
       
       if (driveResult) {
         const docData = {
           createdBy: user.uid,
+          tahun: spjTahun,
           bidang: spjBidang,
           kegiatan: spjKegiatan,
           sumberAnggaran: spjSumber,
@@ -263,6 +278,22 @@ export default function ArsipDokumenPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-2">
+                    <Calendar className="h-3 w-3" /> Pilih Tahun Anggaran
+                  </Label>
+                  <Select value={spjTahun} onValueChange={(val) => { setSpjTahun(val); setSpjSumber(""); setSpjKegiatan(""); }}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue placeholder="Pilih Tahun..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["2024", "2025", "2026", "2027", "2028", "2029"].map(y => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-2">
                     <Layers className="h-3 w-3" /> Pilih Bidang
                   </Label>
                   <Select value={spjBidang} onValueChange={(val) => { setSpjBidang(val); setSpjSumber(""); setSpjKegiatan(""); }}>
@@ -279,11 +310,11 @@ export default function ArsipDokumenPage() {
 
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-2">
-                    <Database className="h-3 w-3" /> Sumber Anggaran
+                    <Database className="h-3 w-3" /> Sumber Anggaran (Sesuai Tahun)
                   </Label>
-                  <Select value={spjSumber} disabled={!spjBidang} onValueChange={(val) => { setSpjSumber(val); setSpjKegiatan(""); }}>
+                  <Select value={spjSumber} disabled={!spjBidang || isApbLoading} onValueChange={(val) => { setSpjSumber(val); setSpjKegiatan(""); }}>
                     <SelectTrigger className="h-12 rounded-xl">
-                      <SelectValue placeholder="Pilih Sumber..." />
+                      <SelectValue placeholder={isApbLoading ? "Memuat..." : "Pilih Sumber..."} />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredSources.map(s => (
@@ -295,15 +326,15 @@ export default function ArsipDokumenPage() {
 
                 <div className="space-y-2 md:col-span-2">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-2">
-                    <Activity className="h-3 w-3" /> Nama Kegiatan (Dari APBDes)
+                    <Activity className="h-3 w-3" /> Nama Kegiatan (Database APBDes {spjTahun})
                   </Label>
-                  <Select value={spjKegiatan} disabled={!spjSumber} onValueChange={setSpjKegiatan}>
+                  <Select value={spjKegiatan} disabled={!spjSumber || isApbLoading} onValueChange={setSpjKegiatan}>
                     <SelectTrigger className="h-12 rounded-xl">
-                      <SelectValue placeholder="Pilih Kegiatan..." />
+                      <SelectValue placeholder={isApbLoading ? "Memuat APBDes..." : "Pilih Kegiatan..."} />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredActivities.map(item => (
-                        <SelectItem key={item.kode} value={item.uraian}>{item.uraian}</SelectItem>
+                        <SelectItem key={item.id} value={item.uraian}>{item.uraian}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -358,7 +389,7 @@ export default function ArsipDokumenPage() {
                                 </div>
                                 <div className="min-w-0">
                                     <p className="font-bold text-sm truncate">{item.kegiatan}</p>
-                                    <p className="text-[10px] text-muted-foreground font-medium uppercase">{item.sumberAnggaran} • {item.bulan}</p>
+                                    <p className="text-[10px] text-muted-foreground font-medium uppercase">{item.tahun} • {item.sumberAnggaran} • {item.bulan}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">

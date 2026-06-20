@@ -56,7 +56,7 @@ export const generateNaskahPDF = async (type: string, data: any, logoBase64?: st
     
     doc.text("Nomor", margin, currentY);
     doc.text(":", margin + 25, currentY);
-    doc.text(data.nomorSurat || "..... / No / 04 / 2026", margin + 28, currentY);
+    doc.text(data.nomorSurat || "..... / No / 13 / 2026", margin + 28, currentY);
 
     // Tanggal Surat H-1 dari hari pelaksanaan (Align Right, same line as Nomor)
     const letterDate = data.tanggal ? subDays(new Date(data.tanggal), 1) : new Date();
@@ -133,7 +133,7 @@ export const generateNaskahPDF = async (type: string, data: any, logoBase64?: st
     doc.setFontSize(11);
     doc.text("KEPUTUSAN KEPALA DESA WRINGINHARJO", pageWidth / 2, currentY, { align: "center" });
     currentY += lineH;
-    doc.text(`NOMOR : ${data.nomorSurat || "..... / No / 04 / 2026"}`, pageWidth / 2, currentY, { align: "center" });
+    doc.text(`NOMOR : ${data.nomorSurat || "..... / No / 13 / 2026"}`, pageWidth / 2, currentY, { align: "center" });
     currentY += 8;
     doc.text("TENTANG", pageWidth / 2, currentY, { align: "center" });
     currentY += lineH;
@@ -191,7 +191,7 @@ export const generateNaskahPDF = async (type: string, data: any, logoBase64?: st
     currentY += (baTitleLines.length * 5) + 3;
     
     doc.setFontSize(10);
-    doc.text(`Nomor : ${data.nomorSurat || "..... / No / 04 / 2026"}`, pageWidth / 2, currentY, { align: "center" });
+    doc.text(`Nomor : ${data.nomorSurat || "..... / No / 13 / 2026"}`, pageWidth / 2, currentY, { align: "center" });
     
     currentY += 10;
     doc.setFont("helvetica", "normal");
@@ -245,7 +245,7 @@ export const generateNaskahPDF = async (type: string, data: any, logoBase64?: st
     doc.text("SURAT TUGAS", pageWidth / 2, currentY, { align: "center" });
     currentY += 5;
     doc.setFontSize(11);
-    doc.text(`Nomor : ${data.nomorSurat || "..... / No / 04 / 2026"}`, pageWidth / 2, currentY, { align: "center" });
+    doc.text(`Nomor : ${data.nomorSurat || "..... / No / 13 / 2026"}`, pageWidth / 2, currentY, { align: "center" });
     
     currentY += 10;
     doc.setFont("helvetica", "normal");

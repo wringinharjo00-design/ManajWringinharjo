@@ -213,7 +213,7 @@ export default function ProfilePage() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Data Personel");
-    XLSX.writeFile(wb, `Data_Personel_${activeTab.replace(/\s+/g, '_')}_Wringinharjo.xlsx`);
+    XLSX.writeFile(wb, `Data_Personel_${activeTab.replace(/\s+/g, '_')}_wringinharjo.xlsx`);
   }
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {

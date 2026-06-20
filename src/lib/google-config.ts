@@ -22,7 +22,7 @@ interface GoogleConfig {
 
 export const GOOGLE_CONFIG: GoogleConfig = {
   // URL Deployment sesuai parameter backend user
-  appsScriptUrl: "https://script.google.com/macros/s/AKfycbzWG_lVZQCfWo-ZVhidGtMopvoM-LR3Wl3NbV_cPiovQpZZ8GFh5llV3cPrOUE9ArofIg/exec",
+  appsScriptUrl: "https://script.google.com/macros/s/AKfycbwerUYtqq2OMXxQuDvGe9qzZOamaVg4Sh52CoXYIh-JRkn3os09PvjVkIPEDXbPqJtZbA/exec",
   calendarId: "primary", // Diubah ke 'primary' untuk mencegah error 'Not Found'
   parentFolderId: "1-yZW2Z7V5J2j2aVp9p4aJ3R8Q9J4v8tU",
 };

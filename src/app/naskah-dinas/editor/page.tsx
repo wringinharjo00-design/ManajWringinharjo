@@ -458,7 +458,7 @@ function EditorContent() {
                             <Label className="text-[10px] font-black uppercase text-primary tracking-widest ml-1">Nomor Surat Resmi</Label>
                             <div className="flex gap-2">
                                 <Input 
-                                    placeholder="000 / No / 04 / 2026" 
+                                    placeholder="000 / No / 13 / 2026" 
                                     className="h-12 font-mono text-sm font-bold bg-white border-primary/20" 
                                     value={formData.nomorSurat || ""} 
                                     onChange={e => updateField("nomorSurat", e.target.value)}

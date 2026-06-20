@@ -4,24 +4,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // == Rules: Akun Personel Absensi ==
-    match /personel/{docId} {
-      // Izinkan baca publik agar halaman login bisa mencari email berdasarkan username.
-      allow read: if true;
-      
-      // Admin bisa mengelola akun secara penuh
-      allow create, delete: if isSignedIn() && isAdmin();
-      
-      // User diizinkan update datanya sendiri (termasuk sinkronisasi UID awal)
-      allow update: if (isAdmin()) || (isSignedIn() && (
-        (resource.data.get('uid', '') == request.auth.uid) ||
-        (resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
-        ((resource.data.get('username', '').lower() + "@wringinharjo.id") == request.auth.token.email.lower()) ||
-        (request.resource.data.get('uid', '') == request.auth.uid) ||
-        (docId == request.auth.uid)
-      ));
-    }
-
     // == Helper Functions ==
     function isSignedIn() {
       return request.auth != null;
@@ -35,6 +17,27 @@ service cloud.firestore {
       );
     }
 
+    // == Rules: Akun Personel Absensi ==
+    match /personel/{docId} {
+      // Izinkan baca publik agar halaman login bisa mencari email berdasarkan username.
+      allow read: if true;
+      
+      // Admin bisa mengelola akun secara penuh
+      allow create, delete: if isSignedIn() && isAdmin();
+      
+      // User diizinkan update datanya sendiri (terutama untuk sinkronisasi UID awal)
+      // Kita izinkan jika:
+      // 1. User adalah Admin
+      // 2. User sedang login sebagai pemilik akun tersebut (cek UID atau Email atau Username)
+      allow update: if (isAdmin()) || (isSignedIn() && (
+        (resource.data.get('uid', '') == request.auth.uid) ||
+        (resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
+        ((resource.data.get('username', '').lower() + "@wringinharjo.id") == request.auth.token.email.lower()) ||
+        (request.resource.data.get('uid', '') == request.auth.uid) ||
+        (docId == request.auth.uid)
+      ));
+    }
+
     // == Rules: Global Shared Village Data ==
     // Semua perangkat yang login bisa melihat dan mengelola data operasional desa
     match /kegiatans/{docId} { allow read, write: if isSignedIn(); }
@@ -42,6 +45,7 @@ service cloud.firestore {
     match /spjDesa/{docId} { allow read, write: if isSignedIn(); }
     match /produkHukum/{docId} { allow read, write: if isSignedIn(); }
     match /settings/village { allow read, write: if isSignedIn(); }
+    match /apbdes_records/{docId} { allow read, write: if isSignedIn(); }
 
     // == Rules: Absensi Records ==
     match /absensi/{absenId} {

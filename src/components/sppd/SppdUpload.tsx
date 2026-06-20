@@ -425,7 +425,7 @@ export function SppdUpload({ onSuccess, initialData }: SppdUploadProps) {
                     <FormControl>
                       <div className="relative">
                         <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary/40" />
-                        <Input placeholder="800.1.11.1 / XXX / 04 / 2026" className="h-10 pl-9 border-primary/20 font-mono text-[11px] font-bold bg-white" {...field} />
+                        <Input placeholder="800.1.11.1 / XXX / 13 / 2026" className="h-10 pl-9 border-primary/20 font-mono text-[11px] font-bold bg-white" {...field} />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -453,7 +453,7 @@ export function SppdUpload({ onSuccess, initialData }: SppdUploadProps) {
                     <FormControl>
                       <div className="relative">
                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-accent/40" />
-                        <Input placeholder="000.1.2.3 / XXX / 04 / 2026" className="h-10 pl-9 border-accent/20 font-mono text-[11px] font-bold bg-white" {...field} />
+                        <Input placeholder="000.1.2.3 / XXX / 13 / 2026" className="h-10 pl-9 border-accent/20 font-mono text-[11px] font-bold bg-white" {...field} />
                       </div>
                     </FormControl>
                     <FormMessage />

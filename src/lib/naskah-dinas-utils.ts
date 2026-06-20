@@ -95,14 +95,14 @@ export async function getNextSequenceNumber(db: Firestore, kategori: string, cla
 
   // Mengembalikan format tanpa spasi agar parsing di frontend lebih akurat
   if (kategori === "sppd") {
-    return `000.1.2.3/${paddedNum}/04/${currentYear}`;
+    return `000.1.2.3/${paddedNum}/13/${currentYear}`;
   }
   
   if (kategori === "surat_tugas_sppd") {
-    return `800.1.11.1/${paddedNum}/04/${currentYear}`;
+    return `800.1.11.1/${paddedNum}/13/${currentYear}`;
   }
   
-  return `${classification}/${paddedNum}/04/${currentYear}`;
+  return `${classification}/${paddedNum}/13/${currentYear}`;
 }
 
 /**

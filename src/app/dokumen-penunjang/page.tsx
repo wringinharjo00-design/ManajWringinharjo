@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useSearchParams } from "next/navigation"
@@ -33,10 +32,10 @@ import Link from "next/link"
 import { useState, Suspense, useMemo, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { APB_DATA, BIDANG_NAMES } from "@/lib/apbdes-data"
+import { BIDANG_NAMES, type ApbItem } from "@/lib/apbdes-data"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase"
-import { doc, collection, query, where } from "firebase/firestore"
+import { collection, doc, query, where, orderBy } from "firebase/firestore"
 import { generateDaftarHadirPDF, generateUangSakuPDF, generateDaftarHadirPesertaPDF } from "@/lib/pdf-utils-v2"
 import { generateHonorNarasumberPDF, generateInsentifPDF, generateSiltapPDF } from "@/lib/pdf-utils"
 
@@ -148,8 +147,7 @@ const getRtRwWeight = (jabatan: string) => {
 
 const getKaderWeight = (jabatan: string) => {
   const j = jabatan.toUpperCase();
-  // Ekstrak angka pertama yang ditemukan dalam string jabatan (misal: Anggrek 1, Rahayu 2, dll)
-  const match = j.match(/(\d+)/);
+  const match = j.match(/(?:LESTARI|RAHAYU)\s*(\d+)/i) || j.match(/(\d+)/);
   return match ? parseInt(match[1]) : 999;
 };
 
@@ -187,6 +185,13 @@ function DokumenContent() {
   // Sub tab state for posyandu
   const [posyanduSubType, setPosyanduSubType] = useState<"kader" | "peserta">("kader")
 
+  // FETCH APBDes Data from Firestore (Unified Source)
+  const apbRef = useMemoFirebase(() => {
+    if (!db || !user) return null
+    return query(collection(db, "apbdes_records"), orderBy("kode", "asc"))
+  }, [db, user])
+  const { data: currentApbData, isLoading: isApbLoading } = useCollection<ApbItem>(apbRef)
+
   // Mengambil data personil dari Firestore
   const personnelRef = useMemoFirebase(() => (db && user) ? collection(db, "personnel") : null, [db, user])
   const { data: dbOfficials } = useCollection(personnelRef)
@@ -199,6 +204,7 @@ function DokumenContent() {
   const { data: villageSettings } = useDoc(villageSettingsRef)
 
   const [useApbdes, setUseApbdes] = useState(true)
+  const [selectedYear, setSelectedYear] = useState("2026") // State baru untuk Tahun
   const [bidang, setBidang] = useState("")
   const [sumber, setSumber] = useState("")
   const [kegiatan, setKegiatan] = useState("")
@@ -227,14 +233,19 @@ function DokumenContent() {
   const [siltapSubType, setSiltapSubType] = useState<"perangkat" | "bpd">("perangkat")
 
   // Posyandu States
-  const [selectedWiwitRahayu, setSelectedWiwitRahayu] = useState("")
+  const [selectedLestari, setSelectedLestari] = useState("")
   const [selectedHealthCategory, setSelectedHealthCategory] = useState("Balita")
 
-  // Fetch actual health records data
+  // Fetch actual health records data based on selection
   const healthDataQuery = useMemoFirebase(() => {
-    if (!db || !user || type !== "daftar-hadir-posyandu" || posyanduSubType !== "peserta") return null;
-    return query(collection(db, "health_records"), where("category", "==", selectedHealthCategory));
-  }, [db, user, type, posyanduSubType, selectedHealthCategory]);
+    if (!db || !user || type !== "daftar-hadir-posyandu" || posyanduSubType !== "peserta" || !selectedHealthCategory) return null;
+    
+    const colRef = collection(db, "health_records");
+    if (selectedLestari && selectedLestari !== "SEMUA POSYANDU") {
+      return query(colRef, where("category", "==", selectedHealthCategory), where("posyandu", "==", selectedLestari));
+    }
+    return query(colRef, where("category", "==", selectedHealthCategory));
+  }, [db, user, type, posyanduSubType, selectedHealthCategory, selectedLestari]);
   const { data: healthRecords } = useCollection(healthDataQuery);
 
   useEffect(() => {
@@ -247,18 +258,19 @@ function DokumenContent() {
     }
   }, [type])
 
-  const WiwitRahayuGroups = useMemo(() => {
+  const LestariGroups = useMemo(() => {
     if (!dbOfficials) return [];
     const kaders = dbOfficials.filter(o => o.category === "Kader");
     const groups = new Set<string>();
     kaders.forEach(k => {
-      const match = k.jabatan?.match(/Anggrek\s+\d+/i);
+      const match = k.jabatan?.match(/Lestari\s+\d+/i);
       if (match) groups.add(match[0].toUpperCase());
-      else if (k.jabatan?.toUpperCase().includes("Anggrek")) {
+      else if (k.jabatan?.toUpperCase().includes("Lestari")) {
           groups.add(k.jabatan.toUpperCase().trim());
       }
     });
-    return Array.from(groups).sort();
+    const result = Array.from(groups).sort();
+    return ["SEMUA POSYANDU", ...result];
   }, [dbOfficials]);
 
   const handleParticipantSelectionChange = (index: number, value: string) => {
@@ -272,15 +284,22 @@ function DokumenContent() {
   , [dbOfficials]);
 
   const filteredSources = useMemo(() => {
-    if (!bidang) return []
-    const sources = APB_DATA.filter(item => item.bidang.toString() === bidang).map(item => item.sumber)
+    if (!bidang || !currentApbData) return []
+    const sources = currentApbData
+      .filter(item => String(item.bidang) === String(bidang) && item.tahun === selectedYear)
+      .map(item => String(item.sumber || "").trim())
+      .filter(s => s !== "");
     return Array.from(new Set(sources))
-  }, [bidang])
+  }, [bidang, selectedYear, currentApbData])
 
   const filteredActivities = useMemo(() => {
-    if (!bidang || !sumber) return []
-    return APB_DATA.filter(item => item.bidang.toString() === bidang && item.sumber === sumber)
-  }, [bidang, sumber])
+    if (!bidang || !sumber || !currentApbData) return []
+    return currentApbData.filter(item => 
+      String(item.bidang) === String(bidang) && 
+      item.tahun === selectedYear &&
+      String(item.sumber || "").trim() === String(sumber).trim()
+    )
+  }, [bidang, sumber, selectedYear, currentApbData])
 
   const handlePrint = async () => {
     setIsGenerating(true)
@@ -304,9 +323,7 @@ function DokumenContent() {
             allParticipants.push(...members);
         });
 
-        // 1. Sort by Hierarchy before de-duplication and quota slicing
         const sorted = sortParticipants(allParticipants);
-
         const uniqueParticipants = Array.from(new Map(sorted.map(item => [item.name, item])).values());
         const finalParticipants = Array.from({ length: quota }, (_, i) => 
             uniqueParticipants[i] || { name: "", jabatan: "", category: "" }
@@ -330,44 +347,41 @@ function DokumenContent() {
       } 
       else if (type === "daftar-hadir-posyandu") {
         if (!finalTitle) throw new Error("Judul kegiatan harus diisi")
-        if (!selectedWiwitRahayu) throw new Error("Pilih Kelompok Posyandu")
+        if (!selectedLestari) throw new Error("Pilih Kelompok Posyandu")
         
+        const isAll = selectedLestari === "SEMUA POSYANDU";
+        const displayLestari = isAll ? "LESTARI" : selectedLestari;
+        const reportTitle = isAll ? "DAFTAR HADIR POSYANDU LESTARI" : `DAFTAR HADIR POSYANDU ${displayLestari}`;
+
         if (posyanduSubType === "kader") {
-            const kaders = (dbOfficials || []).filter(o => o.category === "Kader" && (o.jabatan?.toUpperCase().includes(selectedWiwitRahayu)));
-            const quota = Math.max(kaders.length, 10); // Minimal 10 baris
-
+            const kaders = (dbOfficials || []).filter(o => o.category === "Kader" && (isAll || o.jabatan?.toUpperCase().includes(selectedLestari)));
+            const quota = Math.max(kaders.length, 10); 
             const sortedKaders = sortParticipants(kaders);
-
             const finalParticipants = Array.from({ length: quota }, (_, i) => 
                 sortedKaders[i] ? { name: sortedKaders[i].name, jabatan: sortedKaders[i].jabatan, category: "Kader" } : { name: "", jabatan: "", category: "" }
             );
-
             const pdfData = { 
                 kegiatan: finalTitle, 
                 tanggal: date, 
                 participants: finalParticipants,
-                mainTitle: `DAFTAR HADIR POSYANDU ${selectedWiwitRahayu}`,
+                mainTitle: reportTitle,
                 location,
                 time
             };
             pdfBlob = await generateDaftarHadirPDF(pdfData, villageSettings?.logoBase64);
         } else {
-            // TAB PESERTA (BALITA, LANSIA, DLL)
             const mappedParticipants = (healthRecords || []).map(r => ({
                 name: r.name,
-                jabatan: r.address, // We use jabatan field to store address for the PDF table column
+                jabatan: r.address, 
                 category: r.category
             }));
-
-            // Sort alphabetically for patients
             mappedParticipants.sort((a, b) => a.name.localeCompare(b.name));
-
             const pdfData = {
                 kegiatan: finalTitle,
                 tanggal: date,
                 participants: mappedParticipants,
                 quota: Math.max(mappedParticipants.length, jumlahKuotaPeserta),
-                mainTitle: `DAFTAR HADIR ${selectedHealthCategory.toUpperCase()} POSYANDU ${selectedWiwitRahayu}`,
+                mainTitle: isAll ? `DAFTAR HADIR ${selectedHealthCategory.toUpperCase()} POSYANDU LESTARI` : `DAFTAR HADIR ${selectedHealthCategory.toUpperCase()} POSYANDU ${displayLestari}`,
                 location,
                 time
             };
@@ -394,10 +408,8 @@ function DokumenContent() {
               name: String(o.name || ""), 
               position: String(o.jabatan || ""),
               category: String(o.category || ""),
-              jabatan: String(o.jabatan || "") // needed for helper
+              jabatan: String(o.jabatan || "") 
             }));
-            
-            // Sort by hierarchy before printing
             const sorted = sortParticipants(rawMembers);
             insentifParticipants = sorted.map(s => ({ name: s.name, position: s.position, category: s.category }));
         }
@@ -414,14 +426,12 @@ function DokumenContent() {
       }
       else if (type === "siltap") {
         let dataToPrint = [];
-        
         if (siltapSubType === "perangkat") {
           dataToPrint = (dbOfficials || [])
             .filter(o => o.category === "Pemerintah Desa")
             .map(o => {
               let nominal = 0;
               const job = (o.jabatan || "").toUpperCase();
-              
               if (job.includes("KEPALA DESA")) nominal = 4000000;
               else if (job.includes("SEKRETARIS DESA")) nominal = 3000000;
               else if (job.includes("KAUR KEUANGAN")) nominal = 2400000;
@@ -432,16 +442,8 @@ function DokumenContent() {
               else if (job.includes("KEPALA DUSUN")) nominal = 2200000;
               else if (job.includes("STAF")) nominal = 2050000;
               else nominal = 0;
-
-              return {
-                name: o.name,
-                jabatan: o.jabatan,
-                nominal: nominal,
-                category: o.category
-              };
+              return { name: o.name, jabatan: o.jabatan, nominal: nominal, category: o.category };
             });
-            
-          // Use hierarchy sorting for siltap instead of just nominal
           dataToPrint = sortParticipants(dataToPrint);
         } else {
           dataToPrint = (dbOfficials || [])
@@ -449,24 +451,14 @@ function DokumenContent() {
             .map(o => {
               let nominal = 0;
               const job = (o.jabatan || "").toUpperCase();
-              
               if (job.includes("KETUA") && !job.includes("WAKIL")) nominal = 550000;
               else if (job.includes("WAKIL KETUA")) nominal = 450000;
               else if (job.includes("SEKRETARIS")) nominal = 400000;
-              else nominal = 350000; // ANGGOTA
-
-              return {
-                name: o.name,
-                jabatan: o.jabatan,
-                nominal: nominal,
-                category: o.category
-              };
+              else nominal = 350000;
+              return { name: o.name, jabatan: o.jabatan, nominal: nominal, category: o.category };
             });
-            
-          // Simple alphabetical for BPD members of same rank
           dataToPrint.sort((a, b) => b.nominal - a.nominal || a.name.localeCompare(b.name));
         }
-
         pdfBlob = await generateSiltapPDF({ 
             month: insentifMonth, 
             date, 
@@ -478,13 +470,11 @@ function DokumenContent() {
       if (pdfBlob) {
         const url = URL.createObjectURL(pdfBlob)
         window.open(url, "_blank")
-        toast({ title: "PDF Berhasil", description: "Dokumen siap dicetak." })
+        toast({ title: "Berhasil", description: "Dokumen siap dicetak." })
       } else {
         throw new Error("Gagal menghasilkan PDF.")
       }
-
     } catch (e: any) {
-      console.error(e)
       toast({ variant: "destructive", title: "Gagal Cetak", description: e.message || "Terjadi kesalahan sistem." })
     } finally {
       setIsGenerating(false)
@@ -693,15 +683,6 @@ function DokumenContent() {
                         </div>
                     </div>
                 </div>
-
-                <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl flex items-start gap-4">
-                    <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                        <Info className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <p className="text-[11px] font-bold text-emerald-800 leading-relaxed italic mt-1">
-                        * Data nominal Siltap menggunakan database pusat Pemerintah Desa Wringinharjo yang tersimpan di Firestore.
-                    </p>
-                </div>
              </div>
           )}
 
@@ -731,12 +712,12 @@ function DokumenContent() {
                         </div>
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-rose-600 tracking-widest ml-1">Pilih Kelompok Posyandu</Label>
-                            <Select value={selectedWiwitRahayu} onValueChange={setSelectedWiwitRahayu}>
+                            <Select value={selectedLestari} onValueChange={setSelectedLestari}>
                                 <SelectTrigger className="h-14 rounded-2xl bg-rose-50 border-rose-100 font-black">
                                     <SelectValue placeholder="Pilih Posyandu..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {WiwitRahayuGroups.map(group => (
+                                    {LestariGroups.map(group => (
                                         <SelectItem key={group} value={group} className="font-bold">{group}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -814,6 +795,22 @@ function DokumenContent() {
               <div className="grid gap-5">
                 {useApbdes ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2 space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-primary tracking-widest ml-1 flex items-center gap-2">
+                            <Calendar className="h-3 w-3" /> Pilih Tahun APBDes
+                        </Label>
+                        <Select value={selectedYear} onValueChange={(val) => { setSelectedYear(val); setSumber(""); setKegiatan(""); }}>
+                            <SelectTrigger className="h-12 rounded-xl bg-primary/5 border-primary/10 px-5 font-black text-primary">
+                                <SelectValue placeholder="Pilih Tahun..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {["2024", "2025", "2026", "2027", "2028", "2029"].map(y => (
+                                    <SelectItem key={y} value={y}>{y}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Pilih Bidang</Label>
                       <Select onValueChange={(val) => { setBidang(val); setSumber(""); setKegiatan(""); }}>
@@ -828,10 +825,10 @@ function DokumenContent() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Sumber Dana</Label>
-                      <Select disabled={!bidang} onValueChange={(val) => { setSumber(val); setKegiatan(""); }}>
+                      <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Sumber Dana ({selectedYear})</Label>
+                      <Select disabled={!bidang || isApbLoading} onValueChange={(val) => { setSumber(val); setKegiatan(""); }}>
                         <SelectTrigger className="h-12 rounded-xl bg-muted/20 border-none px-5">
-                          <SelectValue placeholder="Pilih..." />
+                          <SelectValue placeholder={isApbLoading ? "Memuat..." : "Pilih..."} />
                         </SelectTrigger>
                         <SelectContent>
                           {filteredSources.map(s => (
@@ -841,14 +838,14 @@ function DokumenContent() {
                       </Select>
                     </div>
                     <div className="sm:col-span-2 space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Pilih Kegiatan</Label>
-                      <Select disabled={!sumber} onValueChange={setKegiatan}>
+                      <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Pilih Kegiatan (Database {selectedYear})</Label>
+                      <Select disabled={!sumber || isApbLoading} onValueChange={setKegiatan}>
                         <SelectTrigger className="h-12 rounded-xl bg-muted/20 border-none px-5">
-                          <SelectValue placeholder="Pilih Uraian..." />
+                          <SelectValue placeholder={isApbLoading ? "Memuat..." : "Pilih Uraian..."} />
                         </SelectTrigger>
                         <SelectContent>
                           {filteredActivities.map(item => (
-                            <SelectItem key={item.kode} value={item.uraian}>{item.uraian}</SelectItem>
+                            <SelectItem key={item.id} value={item.uraian}>{item.uraian}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -977,7 +974,11 @@ function DokumenContent() {
                                             type="number"
                                             placeholder="0" 
                                             value={narsumData[i].tax}
-                                            onChange={(e) => updateNarsumData(i, "tax", e.target.value)}
+                                            onChange={(e) => setNarsumData(prev => {
+                                                const next = [...prev];
+                                                next[i] = { ...next[i], tax: e.target.value };
+                                                return next;
+                                            })}
                                             className="h-12 pl-10 rounded-xl bg-white border-amber-100 focus:border-amber-400 font-bold"
                                         />
                                     </div>
@@ -1023,7 +1024,7 @@ function DokumenContent() {
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-teal-900 tracking-widest">Pot Pajak (%)</Label>
                     <div className="relative">
-                      <Percent className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-teal-600" />
+                      <Percent className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-teal-600" />
                       <Input 
                         type="number"
                         placeholder="0" 

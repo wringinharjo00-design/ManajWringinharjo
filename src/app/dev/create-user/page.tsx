@@ -5,7 +5,7 @@ import { useState } from "react"
 import { auth, firestore as db } from "@/firebase"
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth"
 import { doc, getDocs, collection, updateDoc } from "firebase/firestore"
-import { Loader2, ArrowLeft, RefreshCw, AlertCircle, Info, LogOut, ShieldCheck } from "lucide-react"
+import { Loader2, ArrowLeft, RefreshCw, AlertCircle, Info, LogOut, ShieldCheck, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -27,7 +27,7 @@ export default function CreateUserPage() {
     setLogs([])
     
     const adminEmail = auth.currentUser?.email;
-    addLog(`🚀 Memulai sinkronisasi kredensial (Admin: ${adminEmail})...`, "info")
+    addLog(`🚀 Memulai sinkronisasi kredensial (Sesi Awal: ${adminEmail || 'Admin'})...`, "info")
 
     try {
       const personelRef = collection(db, "personel")
@@ -47,27 +47,27 @@ export default function CreateUserPage() {
         const email = `${username}@wringinharjo.id`
         const password = u.password || "password123"
 
-        addLog(`⏳ Sinkronisasi: [${username.toUpperCase()}]...`)
-        await sleep(500);
+        addLog(`⏳ Sinkronisasi: [${username.toUpperCase()}]...`, "info")
+        await sleep(300);
 
         try {
           let finalUid = "";
 
           try {
-            // Coba daftarkan akun baru
+            // 1. Coba daftarkan akun baru
             const userCredential = await createUserWithEmailAndPassword(auth, email, password)
             finalUid = userCredential.user.uid;
-            addLog(`✅ Auth: [${username}] BARU didaftarkan.`, 'success')
+            addLog(`✅ Auth: [${username}] berhasil didaftarkan baru.`, 'success')
           } catch (authErr: any) {
-            // Jika sudah ada, coba dapatkan UID-nya dengan login sementara
+            // 2. Jika sudah ada, kita HARUS login sebagai user tersebut 
+            // agar Security Rules mengizinkan update UID di Firestore (Rule: Self Update)
             if (authErr.code === 'auth/email-already-in-use' || authErr.code === 'auth/email-already-exists') {
               try {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password)
                 finalUid = userCredential.user.uid;
-                addLog(`ℹ️ Auth: [${username}] sudah ada di sistem.`, 'info')
+                addLog(`ℹ️ Auth: [${username}] sudah ada. Login berhasil.`, 'info')
               } catch (loginErr: any) {
-                addLog(`⚠️ Auth: Password [${username}] di Database berbeda dengan sistem login.`, 'warn')
-                // Lewati update karena kita tidak bisa verifikasi identitas
+                addLog(`⚠️ Auth: Gagal login [${username}]. Password mungkin sudah diubah manual?`, 'warn')
                 continue;
               }
             } else {
@@ -75,33 +75,35 @@ export default function CreateUserPage() {
             }
           }
 
-          // Update UID ke Firestore jika berhasil didapat
+          // 3. Update UID ke Firestore
+          // Saat ini session aktif adalah user tersebut, 
+          // maka rule "request.resource.data.uid == request.auth.uid" akan berlaku.
           if (finalUid) {
-            // Karena rules mengizinkan Admin atau Pemilik mengupdate, dan sekarang kita sedang login sebagai user tersebut
-            await updateDoc(doc(db, "personel", u.id), {
-              uid: finalUid,
-              email: email,
-              username: username,
-              updated_at: new Date().toISOString()
-            });
-            addLog(`📝 Firestore: UID [${username}] diperbarui.`, 'success');
+            try {
+              await updateDoc(doc(db, "personel", u.id), {
+                uid: finalUid,
+                email: email,
+                username: username,
+                updated_at: new Date().toISOString()
+              });
+              addLog(`📝 Firestore: Data [${username}] berhasil ditautkan.`, 'success');
+            } catch (fsErr: any) {
+              addLog(`❌ Firestore ERROR [${username}]: ${fsErr.message}`, "error");
+            }
           }
 
-          // JANGAN SIGNOUT DI SINI AGAR TIDAK MEMUTUS SESI Loop
-          // Cukup lanjut ke iterasi berikutnya, signIn berikutnya akan otomatis menggantikan user aktif.
-
         } catch (err: any) {
-          addLog(`❌ ERROR [${username}]: ${err.message}`, "error")
+          addLog(`💥 ERROR [${username}]: ${err.message}`, "error")
         }
       }
 
     } catch (globalErr: any) {
-      addLog(`💥 GAGAL TOTAL: ${globalErr.message}`, "error")
+      addLog(`🚨 KEGAGALAN SISTEM: ${globalErr.message}`, "error")
     }
 
-    // Akhiri dengan Sign Out total demi keamanan
+    // Akhiri dengan Sign Out total demi keamanan dan mengakhiri sesi user terakhir
     await signOut(auth);
-    addLog("🏁 Semua proses selesai. Sesi telah dibersihkan demi keamanan.", "info")
+    addLog("🏁 Semua proses selesai. Sesi Admin telah dibersihkan demi keamanan.", "info")
     setIsProcessing(false)
     setIsDone(true)
   }
@@ -126,10 +128,10 @@ export default function CreateUserPage() {
           <AlertCircle className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="text-xs font-black text-amber-800 uppercase">Perhatian:</p>
-            <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase">
+            <p className="text-[10px] text-amber-700 font-bold leading-relaxed uppercase">
                 1. Alat ini mendaftarkan akun di sistem login berdasarkan data Username di Manajemen Akun.<br />
-                2. Setelah selesai, sesi admin akan otomatis logout. Silakan login kembali untuk masuk Panel Monitoring.<br />
-                3. Jika muncul "Missing Permissions", pastikan Anda menjalankan ini dalam kondisi Login sebagai Admin.
+                2. Sistem menggunakan teknik "Login-Update" untuk menembus proteksi keamanan data mandiri.<br />
+                3. Setelah selesai, sesi admin akan otomatis logout. Silakan login kembali untuk masuk Panel Monitoring.
             </p>
           </div>
         </div>
@@ -152,7 +154,7 @@ export default function CreateUserPage() {
 
       <div className="bg-white rounded-3xl border shadow-xl p-6 h-[500px] overflow-y-auto space-y-2 font-mono text-[10px] relative">
         <div className="sticky top-0 bg-white/90 backdrop-blur-sm border-b pb-2 mb-4 flex items-center gap-2 text-slate-400 font-bold uppercase tracking-widest text-[8px]">
-          <Info className="h-3 w-3" /> Log Aktivitas
+          <Info className="h-3 w-3" /> Log Aktivitas Sinkronisasi
         </div>
         {logs.length === 0 && (
           <div className="py-20 text-center space-y-4">
@@ -168,7 +170,7 @@ export default function CreateUserPage() {
             'bg-slate-50 border-slate-100 text-slate-600'
           }`}>
             <span className="shrink-0 font-black">[{log.type.toUpperCase()}]</span>
-            <span className="font-bold">{log.msg}</span>
+            <span className="font-bold flex-1">{log.msg}</span>
           </div>
         ))}
       </div>
